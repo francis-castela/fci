@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Agenda - Teatro</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <main class="layout">
+    <section class="panel controls">
+      <h1>Gerador de Agenda</h1>
+
+      <ol class="quick-steps">
+        <li>Personalize o título e as cores da agenda.</li>
+        <li>Adicione os eventos um a um.</li>
+        <li>Ou importe os eventos por planilha (CSV, XLS, XLSX).</li>
+        <li>Revise a prévia ao lado.</li>
+        <li>Clique em exportar para baixar o PNG final.</li>
+      </ol>
+
+      <div class="section-head">
+        <span class="step-pill">Passo 1</span>
+        <h2>Configurações da agenda</h2>
+      </div>
+      <div class="field-grid">
+        <label>
+          Título da agenda
+          <input type="text" id="agendaTitle" placeholder="AGENDA ABRIL 2026" maxlength="40">
+          <small class="hint">Exemplo: AGENDA MAIO 2026</small>
+        </label>
+      </div>
+      <details class="color-spoiler">
+        <summary>
+          <span class="spoiler-title">Personalizar cores</span>
+          <span class="spoiler-meta">Opcional</span>
+        </summary>
+        <div class="field-grid color-grid">
+          <label>
+            Cor principal
+            <input type="color" id="primaryColor" value="#b86848">
+            <small class="hint">Usada no título e nas linhas pares.</small>
+          </label>
+          <label>
+            Cor escura
+            <input type="color" id="darkColor" value="#7f442f">
+            <small class="hint">Usada no cabeçalho da tabela.</small>
+          </label>
+          <label>
+            Cor clara
+            <input type="color" id="lightColor" value="#c98971">
+            <small class="hint">Usada nas linhas ímpares.</small>
+          </label>
+        </div>
+        <div class="spoiler-actions">
+          <button id="resetColors" type="button" class="ghost">Restaurar cores padrão</button>
+        </div>
+      </details>
+
+      <div class="section-head">
+        <span class="step-pill">Passo 2</span>
+        <h2>Novo evento</h2>
+      </div>
+      <p class="subtitle compact">Preencha os 5 campos e clique em Adicionar evento.</p>
+      <form id="eventForm" class="event-form">
+        <div class="field-grid">
+          <label>
+            Dia/Mês
+            <input type="text" id="date" placeholder="02/04" inputmode="numeric" required>
+          </label>
+          <label>
+            Horário
+            <input type="text" id="time" placeholder="19:30" inputmode="numeric" required>
+          </label>
+          <label>
+            Nome do evento
+            <input type="text" id="name" placeholder="Espetáculo..." required>
+          </label>
+          <label>
+            Produtor
+            <input type="text" id="producer" placeholder="Nome do produtor" required>
+          </label>
+          <label>
+            Onde comprar
+            <input type="text" id="ticket" placeholder="Gratuito / Plataforma" required>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button type="submit">Adicionar evento</button>
+          <button type="button" id="clearForm" class="ghost">Limpar campos</button>
+        </div>
+      </form>
+
+      <details class="import-spoiler">
+        <summary>
+          <span class="spoiler-title">Importar eventos por planilha</span>
+          <span class="spoiler-meta">Opcional</span>
+        </summary>
+        <p class="subtitle compact">Formato esperado nas colunas: A Dia/Mês, B Horário, C Nome do evento, D Produtor, E Onde comprar.</p>
+        <div class="actions">
+          <button id="downloadTemplate" type="button" class="ghost">Baixar modelo XLSX</button>
+        </div>
+        <div class="import-row">
+          <input id="sheetFile" type="file" accept=".csv,.xls,.xlsx" aria-label="Selecionar planilha de eventos">
+          <button id="importSheet" type="button">Importar planilha</button>
+        </div>
+        <p id="importStatus" class="import-status" aria-live="polite"></p>
+      </details>
+
+      <div class="section-head">
+        <span class="step-pill">Passo 3</span>
+        <h2>Eventos cadastrados <span id="eventCount" class="counter">0 eventos</span></h2>
+      </div>
+      <div class="table-wrap">
+        <table id="eventsTable">
+          <thead>
+            <tr>
+              <th>Dia/Mês</th>
+              <th>Horário</th>
+              <th>Evento</th>
+              <th>Produtor</th>
+              <th>Onde comprar</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="emptyState" class="empty-state">Nenhum evento cadastrado ainda. Use o formulário acima para começar.</p>
+
+      <div class="section-head">
+        <span class="step-pill">Passo 4</span>
+        <h2>Exportação</h2>
+      </div>
+      <div class="actions">
+        <button id="loadSample" type="button" class="ghost">Carregar exemplo</button>
+        <button id="exportCurrentPng" type="button" class="ghost">Exportar página atual</button>
+        <button id="exportPng" type="button">Exportar todas as páginas</button>
+      </div>
+      <p class="subtitle compact">Dica: exporte apenas após revisar a prévia.</p>
+    </section>
+
+    <section class="panel preview-panel">
+      <h2>Prévia</h2>
+      <div class="preview-toolbar">
+        <button id="prevPage" type="button" class="ghost">Página anterior</button>
+        <span id="pageInfo" class="page-info">Página 1 de 1</span>
+        <button id="nextPage" type="button" class="ghost">Próxima página</button>
+      </div>
+      <canvas id="previewCanvas" width="1080" height="1440" aria-label="Prévia da agenda"></canvas>
+    </section>
+  </main>
+
+  <footer class="site-footer" aria-label="Créditos">
+    <div class="site-footer-card">
+      <p class="site-footer-main">
+        Desenvolvido por
+        <a href="https://www.aeca.com.br/francis-castela" target="_blank" rel="noopener noreferrer">Francis Castela</a>
+        para uso interno do Teatro Municipal de Itajaí.
+      </p>
+      <p class="site-footer-meta">Versão 1.0 • 04/2026</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
