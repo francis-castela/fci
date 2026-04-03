@@ -49,11 +49,23 @@ const DEFAULT_THEME = {
   light: "#c98971",
 };
 const COOKIE_PREFIX = "agenda_builder_";
+const LOCAL_STORAGE_STATE_KEY = `${COOKIE_PREFIX}state_v2`;
 const COOKIE_COUNT_KEY = `${COOKIE_PREFIX}chunks`;
 const COOKIE_CHUNK_KEY = `${COOKIE_PREFIX}data_`;
 const COOKIE_CHUNK_SIZE = 3500;
 const COOKIE_MAX_AGE_DAYS = 180;
 const COOKIE_THEME_KEY = `${COOKIE_PREFIX}theme`;
+const XLSX_LIB_URLS = [
+  "assets/vendor/xlsx.full.min.js",
+  "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+];
+const JSZIP_LIB_URLS = [
+  "assets/vendor/jszip.min.js",
+  "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js",
+];
+
+let xlsxLoadPromise = null;
+let jszipLoadPromise = null;
 
 function drawImageContain(ctx, image, x, y, maxWidth, maxHeight) {
   const ratio = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
@@ -183,36 +195,40 @@ function persistStateToCookies() {
       events: state.events.map(toSafeEvent),
     };
 
-    const encoded = encodeURIComponent(JSON.stringify(snapshot));
-    const chunks = encoded.match(new RegExp(`.{1,${COOKIE_CHUNK_SIZE}}`, "g")) || [""];
-
-    clearStateCookies();
-    setCookie(COOKIE_COUNT_KEY, String(chunks.length));
-    chunks.forEach((chunk, index) => {
-      setCookie(`${COOKIE_CHUNK_KEY}${index}`, chunk);
-    });
+    localStorage.setItem(LOCAL_STORAGE_STATE_KEY, JSON.stringify(snapshot));
   } catch (error) {
-    console.warn("Não foi possível salvar o estado em cookies.", error);
+    console.warn("Não foi possível salvar o estado em localStorage.", error);
   }
 }
 
 function restoreStateFromCookies() {
   try {
-    const chunkCount = Number.parseInt(getCookie(COOKIE_COUNT_KEY), 10);
-    if (!Number.isInteger(chunkCount) || chunkCount <= 0) {
-      return;
-    }
+    let snapshot = null;
+    const localSnapshot = localStorage.getItem(LOCAL_STORAGE_STATE_KEY);
 
-    let encoded = "";
-    for (let i = 0; i < chunkCount; i += 1) {
-      const chunk = getCookie(`${COOKIE_CHUNK_KEY}${i}`);
-      if (!chunk) {
+    if (localSnapshot) {
+      snapshot = JSON.parse(localSnapshot);
+    } else {
+      // Migração simples do formato antigo em cookies para localStorage.
+      const chunkCount = Number.parseInt(getCookie(COOKIE_COUNT_KEY), 10);
+      if (!Number.isInteger(chunkCount) || chunkCount <= 0) {
         return;
       }
-      encoded += chunk;
+
+      let encoded = "";
+      for (let i = 0; i < chunkCount; i += 1) {
+        const chunk = getCookie(`${COOKIE_CHUNK_KEY}${i}`);
+        if (!chunk) {
+          return;
+        }
+        encoded += chunk;
+      }
+
+      snapshot = JSON.parse(decodeURIComponent(encoded));
+      localStorage.setItem(LOCAL_STORAGE_STATE_KEY, JSON.stringify(snapshot));
+      clearStateCookies();
     }
 
-    const snapshot = JSON.parse(decodeURIComponent(encoded));
     if (!snapshot || typeof snapshot !== "object") {
       return;
     }
@@ -245,7 +261,7 @@ function restoreStateFromCookies() {
 
     normalizeAgendaTitleInput();
   } catch (error) {
-    console.warn("Não foi possível restaurar o estado salvo em cookies.", error);
+    console.warn("Não foi possível restaurar o estado salvo.", error);
   }
 }
 
@@ -333,7 +349,73 @@ function setImportStatus(message, isError = false) {
   importStatus.style.color = isError ? "#9c2f2f" : "#4f4e74";
 }
 
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === "true") {
+        resolve();
+      } else {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error(`Falha ao carregar ${src}`)), { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.dataset.src = src;
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "true";
+      resolve();
+    }, { once: true });
+    script.addEventListener("error", () => reject(new Error(`Falha ao carregar ${src}`)), { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+async function loadLibraryWithFallback(urls, isReady) {
+  if (isReady()) {
+    return;
+  }
+
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      await loadScript(url);
+      if (isReady()) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Biblioteca indisponível");
+}
+
+function ensureXlsxLoaded() {
+  if (!xlsxLoadPromise) {
+    xlsxLoadPromise = loadLibraryWithFallback(XLSX_LIB_URLS, () => typeof window.XLSX !== "undefined");
+  }
+
+  return xlsxLoadPromise;
+}
+
+function ensureJsZipLoaded() {
+  if (!jszipLoadPromise) {
+    jszipLoadPromise = loadLibraryWithFallback(JSZIP_LIB_URLS, () => typeof window.JSZip !== "undefined");
+  }
+
+  return jszipLoadPromise;
+}
+
 function exportTemplateWorkbook() {
+  if (typeof window.XLSX === "undefined") {
+    throw new Error("Biblioteca XLSX indisponível.");
+  }
+
   const workbook = XLSX.utils.book_new();
 
   const eventsSheetData = [
@@ -358,6 +440,7 @@ async function importSheetFile() {
   }
 
   try {
+    await ensureXlsxLoaded();
     setImportStatus("Importando planilha...");
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, {
@@ -445,6 +528,47 @@ function downloadPageImage(pageEvents, pageIndex, totalPages) {
   link.download = `agenda-1080x1440${pageSuffix}.png`;
   link.href = outputCanvas.toDataURL("image/png");
   link.click();
+}
+
+function getPagePngDataUrl(pageEvents) {
+  const outputCanvas = document.createElement("canvas");
+  outputCanvas.width = OUTPUT_WIDTH;
+  outputCanvas.height = OUTPUT_HEIGHT;
+  const outputCtx = outputCanvas.getContext("2d");
+
+  drawSchedule(outputCtx, OUTPUT_WIDTH, OUTPUT_HEIGHT, pageEvents);
+  return outputCanvas.toDataURL("image/png");
+}
+
+function dataUrlToUint8Array(dataUrl) {
+  const base64 = dataUrl.split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function downloadAllPagesAsZip(pages) {
+  if (typeof window.JSZip === "undefined") {
+    throw new Error("Biblioteca JSZip indisponível.");
+  }
+
+  const zip = new JSZip();
+  pages.forEach((pageEvents, index) => {
+    const pageSuffix = String(index + 1).padStart(2, "0");
+    const filename = `agenda-1080x1440-p${pageSuffix}.png`;
+    const pngDataUrl = getPagePngDataUrl(pageEvents);
+    zip.file(filename, dataUrlToUint8Array(pngDataUrl));
+  });
+
+  const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(zipBlob);
+  link.download = "agenda-1080x1440.zip";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 4000);
 }
 
 function wrapText(ctx, text, maxWidth) {
@@ -760,9 +884,15 @@ clearFormButton.addEventListener("click", () => {
   fields.date.focus();
 });
 
-downloadTemplateButton.addEventListener("click", () => {
-  exportTemplateWorkbook();
-  setImportStatus("Modelo XLSX baixado com sucesso.");
+downloadTemplateButton.addEventListener("click", async () => {
+  try {
+    await ensureXlsxLoaded();
+    exportTemplateWorkbook();
+    setImportStatus("Modelo XLSX baixado com sucesso.");
+  } catch (error) {
+    console.error(error);
+    setImportStatus("Não foi possível carregar a biblioteca de planilhas para gerar o modelo.", true);
+  }
 });
 
 importSheetButton.addEventListener("click", () => {
@@ -828,12 +958,30 @@ themeToggleButton.addEventListener("click", () => {
   persistStateToCookies();
 });
 
-exportButton.addEventListener("click", () => {
+exportButton.addEventListener("click", async () => {
   const pages = getPagedEvents();
 
-  pages.forEach((pageEvents, index) => {
-    downloadPageImage(pageEvents, index, pages.length);
-  });
+  if (pages.length <= 1) {
+    downloadPageImage(pages[0], 0, 1);
+    return;
+  }
+
+  const originalText = exportButton.textContent;
+  exportButton.disabled = true;
+  exportButton.textContent = "Preparando arquivo...";
+
+  try {
+    await ensureJsZipLoaded();
+    await downloadAllPagesAsZip(pages);
+  } catch (error) {
+    console.warn("Falha ao gerar ZIP. Fazendo download individual das páginas.", error);
+    pages.forEach((pageEvents, index) => {
+      downloadPageImage(pageEvents, index, pages.length);
+    });
+  } finally {
+    exportButton.disabled = false;
+    exportButton.textContent = originalText;
+  }
 });
 
 exportCurrentButton.addEventListener("click", () => {

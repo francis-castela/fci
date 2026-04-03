@@ -13,14 +13,14 @@ Aplicação web para montar agenda de eventos e exportar arte em PNG no formato 
 - Pré-visualização em canvas com navegação por páginas.
 - Exportação de:
   - Página atual
-  - Todas as páginas (quando há mais eventos do que cabem em uma única imagem)
+  - Todas as páginas (em arquivo ZIP quando há mais de uma página)
 - Importação de planilha:
   - CSV
   - XLS
   - XLSX
 - Download de modelo XLSX para preenchimento.
 - Personalização de cores com opção de restaurar padrão.
-- Persistência em cookies para continuar depois sem perder dados.
+- Persistência automática em localStorage para continuar depois sem perder dados.
 
 ## Estrutura do projeto
 
@@ -39,6 +39,9 @@ fci/
     img/
       logo-teatro.png
       logo-fundacao-cultural.jpg
+    vendor/
+      xlsx.full.min.js (opcional, fallback local)
+      jszip.min.js (opcional, fallback local)
 ```
 
 ## Como usar
@@ -68,13 +71,50 @@ Dicas:
 
 ## Persistência de dados
 
-O sistema salva automaticamente em cookies:
+O sistema salva automaticamente em localStorage:
 
 - Título
 - Cores
 - Eventos
 
 Ao reabrir a página, os dados são restaurados automaticamente.
+
+## Bibliotecas e fallback
+
+O projeto usa carregamento dinâmico de bibliotecas para planilhas e ZIP:
+
+- XLSX (importação e template)
+- JSZip (exportação de múltiplas páginas em um único .zip)
+
+Ordem de carregamento:
+
+1. Arquivo local em `assets/vendor/`
+2. CDN (jsDelivr)
+
+Se quiser funcionamento offline completo, adicione os arquivos:
+
+- `assets/vendor/xlsx.full.min.js`
+- `assets/vendor/jszip.min.js`
+
+## Checklist rápido de testes
+
+- Criar 1 evento e exportar página atual em PNG.
+- Criar eventos suficientes para 2+ páginas e exportar todas (ZIP).
+- Importar um CSV válido e conferir contagem de eventos.
+- Importar arquivo com linhas incompletas e validar aviso de linhas ignoradas.
+- Baixar o modelo XLSX.
+- Recarregar a página e validar restauração de título, cores e eventos.
+- Alternar tema claro/escuro e validar persistência.
+
+## Troubleshooting
+
+- Importação/modelo XLSX não funciona:
+  - Verifique conexão com internet ou adicione `xlsx.full.min.js` em `assets/vendor/`.
+- Exportação ZIP não funciona:
+  - Verifique conexão com internet ou adicione `jszip.min.js` em `assets/vendor/`.
+  - Sem JSZip, o sistema faz fallback para download individual de PNGs.
+- Favicon não aparece:
+  - Faça recarga forçada do navegador para limpar cache (`Ctrl+F5`).
 
 ## Créditos
 
