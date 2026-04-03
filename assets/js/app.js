@@ -16,6 +16,9 @@ const emptyState = document.getElementById("emptyState");
 const prevPageButton = document.getElementById("prevPage");
 const nextPageButton = document.getElementById("nextPage");
 const pageInfo = document.getElementById("pageInfo");
+const themeToggleButton = document.getElementById("themeToggle");
+const themeToggleLabel = document.getElementById("themeToggleLabel");
+const themeToggleIcon = document.getElementById("themeToggleIcon");
 
 const titleInput = document.getElementById("agendaTitle");
 const primaryColorInput = document.getElementById("primaryColor");
@@ -50,6 +53,7 @@ const COOKIE_COUNT_KEY = `${COOKIE_PREFIX}chunks`;
 const COOKIE_CHUNK_KEY = `${COOKIE_PREFIX}data_`;
 const COOKIE_CHUNK_SIZE = 3500;
 const COOKIE_MAX_AGE_DAYS = 180;
+const COOKIE_THEME_KEY = `${COOKIE_PREFIX}theme`;
 
 function drawImageContain(ctx, image, x, y, maxWidth, maxHeight) {
   const ratio = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
@@ -76,6 +80,39 @@ function getTheme() {
     dark: darkColorInput.value,
     light: lightColorInput.value,
   };
+}
+
+function getCurrentTheme() {
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+}
+
+function updateThemeToggleUi(theme) {
+  if (theme === "dark") {
+    themeToggleLabel.textContent = "Modo claro";
+    themeToggleIcon.textContent = "☾";
+  } else {
+    themeToggleLabel.textContent = "Modo escuro";
+    themeToggleIcon.textContent = "◐";
+  }
+}
+
+function applyTheme(theme) {
+  const normalizedTheme = theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = normalizedTheme;
+  updateThemeToggleUi(normalizedTheme);
+}
+
+function restoreThemeFromCookie() {
+  const savedTheme = getCookie(COOKIE_THEME_KEY);
+  if (savedTheme === "dark" || savedTheme === "light") {
+    applyTheme(savedTheme);
+  } else {
+    applyTheme("light");
+  }
+}
+
+function persistThemeToCookie() {
+  setCookie(COOKIE_THEME_KEY, getCurrentTheme());
 }
 
 function resetThemeToDefault() {
@@ -142,6 +179,7 @@ function persistStateToCookies() {
     const snapshot = {
       title: titleInput.value,
       theme: getTheme(),
+      themeMode: getCurrentTheme(),
       events: state.events.map(toSafeEvent),
     };
 
@@ -199,6 +237,10 @@ function restoreStateFromCookies() {
       state.events = snapshot.events.map(toSafeEvent).filter((event) => {
         return event.date || event.time || event.name || event.producer || event.ticket;
       });
+    }
+
+    if (snapshot.themeMode === "dark" || snapshot.themeMode === "light") {
+      applyTheme(snapshot.themeMode);
     }
 
     normalizeAgendaTitleInput();
@@ -779,6 +821,13 @@ titleInput.addEventListener("input", () => {
   persistStateToCookies();
 });
 
+themeToggleButton.addEventListener("click", () => {
+  const nextTheme = getCurrentTheme() === "dark" ? "light" : "dark";
+  applyTheme(nextTheme);
+  persistThemeToCookie();
+  persistStateToCookies();
+});
+
 exportButton.addEventListener("click", () => {
   const pages = getPagedEvents();
 
@@ -793,6 +842,7 @@ exportCurrentButton.addEventListener("click", () => {
 });
 
 loadLogos();
+restoreThemeFromCookie();
 restoreStateFromCookies();
 normalizeAgendaTitleInput();
 renderTable();

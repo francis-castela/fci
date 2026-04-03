@@ -16,8 +16,14 @@
 
 :root {
   --bg: #f3f5fb;
+  --bg-grad-1: radial-gradient(900px 500px at -10% -20%, #dcecff 0%, transparent 55%);
+  --bg-grad-2: radial-gradient(900px 500px at 110% 120%, #efe9ff 0%, transparent 58%);
+  --bg-grad-3: linear-gradient(180deg, #f8faff 0%, #eef2fb 100%);
   --panel: rgba(255, 255, 255, 0.82);
   --panel-strong: rgba(255, 255, 255, 0.94);
+  --panel-border: rgba(255, 255, 255, 0.75);
+  --panel-shadow-1: 0 20px 45px rgba(17, 40, 84, 0.12);
+  --panel-shadow-2: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
   --text: #1d2433;
   --muted: #5f6b82;
   --line: #d8dfec;
@@ -31,6 +37,37 @@
   --radius-lg: 14px;
   --surface-soft: linear-gradient(160deg, #f9fcff 0%, #edf5ff 100%);
   --surface-shadow: 0 8px 18px rgba(31, 72, 128, 0.12);
+  --footer-text: #445572;
+  --footer-meta: #6f7f98;
+  --table-head-bg: #f4f8ff;
+  --table-head-text: #38557d;
+  --preview-canvas-border: #cdd9ec;
+}
+
+:root[data-theme="dark"] {
+  --bg: #111621;
+  --bg-grad-1: radial-gradient(900px 500px at -10% -20%, #1c2d4a 0%, transparent 60%);
+  --bg-grad-2: radial-gradient(900px 500px at 110% 120%, #2d2348 0%, transparent 62%);
+  --bg-grad-3: linear-gradient(180deg, #151d2b 0%, #0f141e 100%);
+  --panel: rgba(22, 31, 46, 0.82);
+  --panel-strong: rgba(26, 37, 56, 0.94);
+  --panel-border: rgba(165, 194, 239, 0.15);
+  --panel-shadow-1: 0 22px 50px rgba(3, 7, 14, 0.5);
+  --panel-shadow-2: 0 1px 0 rgba(168, 192, 229, 0.12) inset;
+  --text: #f4f8ff;
+  --muted: #c2d0e8;
+  --line: #32435f;
+  --line-strong: #4e6387;
+  --accent: #5ea6f3;
+  --accent-dark: #3d8de4;
+  --accent-soft: #233a58;
+  --surface-soft: linear-gradient(160deg, #1d2b41 0%, #202f47 100%);
+  --surface-shadow: 0 10px 24px rgba(2, 7, 17, 0.4);
+  --footer-text: #c5d2ea;
+  --footer-meta: #98abcd;
+  --table-head-bg: #22344f;
+  --table-head-text: #e1ecff;
+  --preview-canvas-border: #40536f;
 }
 
 * {
@@ -42,11 +79,58 @@ body {
   font-family: "Segoe UI", "Montserrat", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(900px 500px at -10% -20%, #dcecff 0%, transparent 55%),
-    radial-gradient(900px 500px at 110% 120%, #efe9ff 0%, transparent 58%),
-    linear-gradient(180deg, #f8faff 0%, #eef2fb 100%),
+    var(--bg-grad-1),
+    var(--bg-grad-2),
+    var(--bg-grad-3),
     var(--bg);
   min-height: 100vh;
+}
+
+.controls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.controls-header h1 {
+  margin: 0;
+}
+
+.controls-header .theme-toggle {
+  border: 1px solid #b8cff0;
+  border-radius: 999px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.96), rgba(232, 243, 255, 0.92));
+  color: #244a79;
+  box-shadow: var(--surface-shadow);
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.controls-header .theme-toggle-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(15, 108, 189, 0.16);
+  font-size: 0.88rem;
+}
+
+:root[data-theme="dark"] .controls-header .theme-toggle {
+  border-color: #7fa8df;
+  background: linear-gradient(150deg, rgba(38, 53, 79, 0.96), rgba(30, 45, 69, 0.92));
+  color: #f1f7ff;
+}
+
+:root[data-theme="dark"] .controls-header .theme-toggle-icon {
+  background: rgba(94, 166, 243, 0.22);
 }
 
 .site-footer {
@@ -76,13 +160,13 @@ body {
 
 .site-footer-main {
   font-size: 0.84rem;
-  color: #445572;
+  color: var(--footer-text);
 }
 
 .site-footer-meta {
   margin-top: 5px;
   font-size: 0.77rem;
-  color: #6f7f98;
+  color: var(--footer-meta);
   letter-spacing: 0.03em;
 }
 
@@ -102,6 +186,67 @@ body {
   background-color: rgba(15, 108, 189, 0.08);
 }
 
+:root[data-theme="dark"] .site-footer-card {
+  border-color: rgba(153, 183, 230, 0.22);
+  background: linear-gradient(160deg, rgba(28, 42, 63, 0.9), rgba(22, 34, 52, 0.9));
+}
+
+:root[data-theme="dark"] .quick-steps {
+  color: #d7e4fb;
+  border-color: #45608a;
+}
+
+:root[data-theme="dark"] .controls .section-head:not(:first-of-type) {
+  border-top-color: rgba(140, 167, 206, 0.35);
+}
+
+:root[data-theme="dark"] .spoiler-meta {
+  color: #d6e7ff;
+  border-color: #5b7eac;
+  background: rgba(35, 52, 78, 0.9);
+}
+
+:root[data-theme="dark"] .subtitle.compact,
+:root[data-theme="dark"] .hint,
+:root[data-theme="dark"] .import-status,
+:root[data-theme="dark"] .page-info {
+  color: #d0ddf3;
+}
+
+:root[data-theme="dark"] input {
+  color: #f4f8ff;
+  border-color: #536b92;
+  background: #1d2a3f;
+}
+
+:root[data-theme="dark"] input::placeholder {
+  color: #a9bddb;
+}
+
+:root[data-theme="dark"] .table-wrap,
+:root[data-theme="dark"] .preview-toolbar {
+  border-color: #4a6288;
+  background: rgba(31, 46, 69, 0.78);
+}
+
+:root[data-theme="dark"] th,
+:root[data-theme="dark"] td {
+  border-bottom-color: #4a6288;
+}
+
+:root[data-theme="dark"] button.ghost {
+  background: rgba(37, 54, 82, 0.92);
+  color: #ecf4ff;
+  border-color: #6e95ca;
+  box-shadow: 0 8px 18px rgba(2, 8, 19, 0.38);
+}
+
+:root[data-theme="dark"] .empty-state {
+  color: #d8e6ff;
+  background: #203552;
+  border-color: #5a7eaf;
+}
+
 .layout {
   max-width: 1400px;
   margin: 0 auto;
@@ -113,13 +258,13 @@ body {
 
 .panel {
   background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--panel-border);
   border-radius: 22px;
   padding: 22px;
   backdrop-filter: blur(14px) saturate(130%);
   box-shadow:
-    0 20px 45px rgba(17, 40, 84, 0.12),
-    0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    var(--panel-shadow-1),
+    var(--panel-shadow-2);
   animation: fade-slide-in 0.5s ease both;
 }
 
@@ -448,8 +593,8 @@ td {
 }
 
 th {
-  background: #f4f8ff;
-  color: #38557d;
+  background: var(--table-head-bg);
+  color: var(--table-head-text);
 }
 
 .counter {
@@ -516,7 +661,7 @@ th {
   max-width: 405px;
   aspect-ratio: 3 / 4;
   border-radius: 14px;
-  border: 1px solid #cdd9ec;
+  border: 1px solid var(--preview-canvas-border);
   display: block;
   margin: 0 auto;
   background: #fff;
