@@ -13,6 +13,8 @@ const previewCanvas = document.getElementById("previewCanvas");
 const previewCtx = previewCanvas.getContext("2d");
 const eventCount = document.getElementById("eventCount");
 const emptyState = document.getElementById("emptyState");
+const sortFieldSelect = document.getElementById("sortField");
+const sortEventsButton = document.getElementById("sortEvents");
 const prevPageButton = document.getElementById("prevPage");
 const nextPageButton = document.getElementById("nextPage");
 const pageInfo = document.getElementById("pageInfo");
@@ -37,6 +39,8 @@ const state = {
   events: [],
   previewPage: 0,
 };
+
+let draggedRowIndex = null;
 
 const OUTPUT_WIDTH = 1080;
 const OUTPUT_HEIGHT = 1440;
@@ -311,6 +315,91 @@ function isCompleteEvent(event) {
   return Boolean(event.date && event.time && event.name && event.producer && event.ticket);
 }
 
+function normalizeSortableText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+}
+
+function parseSortableDayMonth(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const day = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10);
+  if (Number.isNaN(day) || Number.isNaN(month) || day < 1 || day > 31 || month < 1 || month > 12) {
+    return null;
+  }
+
+  return month * 100 + day;
+}
+
+function parseSortableTime(value) {
+  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number.parseInt(match[1], 10);
+  const minute = Number.parseInt(match[2], 10);
+  if (Number.isNaN(hour) || Number.isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+}
+
+function compareTextAsc(a, b) {
+  return normalizeSortableText(a).localeCompare(normalizeSortableText(b), "pt-BR", {
+    sensitivity: "base",
+    numeric: true,
+  });
+}
+
+function compareNumberLikeAsc(a, b, parser) {
+  const parsedA = parser(a);
+  const parsedB = parser(b);
+
+  if (parsedA !== null && parsedB !== null) {
+    return parsedA - parsedB;
+  }
+
+  if (parsedA !== null) {
+    return -1;
+  }
+
+  if (parsedB !== null) {
+    return 1;
+  }
+
+  return compareTextAsc(a, b);
+}
+
+function sortEventsAscending(sortField) {
+  const comparators = {
+    date: (a, b) => compareNumberLikeAsc(a.date, b.date, parseSortableDayMonth),
+    time: (a, b) => compareNumberLikeAsc(a.time, b.time, parseSortableTime),
+    name: (a, b) => compareTextAsc(a.name, b.name),
+    producer: (a, b) => compareTextAsc(a.producer, b.producer),
+    ticket: (a, b) => compareTextAsc(a.ticket, b.ticket),
+  };
+
+  const comparator = comparators[sortField];
+  if (!comparator || state.events.length <= 1) {
+    return;
+  }
+
+  state.events.sort(comparator);
+  state.previewPage = 0;
+  renderTable();
+  renderPreview();
+  persistStateToCookies();
+}
+
 function parseEventsFromRows(rawRows) {
   const rows = expandSemicolonRows(rawRows).filter((row) => Array.isArray(row) && row.some((cell) => String(cell || "").trim() !== ""));
   if (!rows.length) {
@@ -480,29 +569,177 @@ async function importSheetFile() {
   }
 }
 
-function renderTable() {
+function renderTable(focusRowIndex = null) {
   eventsTableBody.innerHTML = "";
+
+  const clearDropIndicators = () => {
+    eventsTableBody.querySelectorAll("tr").forEach((tableRow) => {
+      tableRow.classList.remove("drop-before", "drop-after", "is-dragging");
+    });
+  };
+
+  const moveEvent = (fromIndex, toIndex) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    const [movedEvent] = state.events.splice(fromIndex, 1);
+    state.events.splice(toIndex, 0, movedEvent);
+  };
+
+  const commitReorder = (fromIndex, toIndex, rowToFocus = null) => {
+    moveEvent(fromIndex, toIndex);
+    draggedRowIndex = null;
+    clearDropIndicators();
+    renderTable(rowToFocus);
+    renderPreview();
+    persistStateToCookies();
+  };
 
   state.events.forEach((event, index) => {
     const row = document.createElement("tr");
+    row.className = "draggable-row";
+    row.draggable = true;
+    row.tabIndex = 0;
+    row.dataset.index = String(index);
+    row.setAttribute("aria-label", `Evento ${index + 1}. Use Alt + seta para cima ou para baixo para reorganizar.`);
     row.innerHTML = `
       <td>${escapeHtml(event.date)}</td>
       <td>${escapeHtml(event.time)}</td>
       <td>${escapeHtml(event.name)}</td>
       <td>${escapeHtml(event.producer)}</td>
       <td>${escapeHtml(event.ticket)}</td>
-      <td><button data-index="${index}" class="ghost remove-btn">Remover</button></td>
+      <td>
+        <div class="row-actions">
+          <button type="button" class="ghost move-btn move-up" aria-label="Mover evento para cima" ${index === 0 ? "disabled" : ""}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 19V7"></path>
+              <path d="M7.5 11.5L12 7l4.5 4.5"></path>
+            </svg>
+          </button>
+          <button type="button" class="ghost move-btn move-down" aria-label="Mover evento para baixo" ${index === state.events.length - 1 ? "disabled" : ""}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 5v12"></path>
+              <path d="M7.5 12.5L12 17l4.5-4.5"></path>
+            </svg>
+          </button>
+          <button type="button" class="ghost remove-btn" aria-label="Remover evento">Remover</button>
+        </div>
+      </td>
     `;
 
-    row.querySelector("button").addEventListener("click", () => {
+    const removeButton = row.querySelector(".remove-btn");
+    const moveUpButton = row.querySelector(".move-up");
+    const moveDownButton = row.querySelector(".move-down");
+    row.querySelectorAll("button").forEach((button) => {
+      button.draggable = false;
+    });
+
+    row.addEventListener("dragstart", (dragEvent) => {
+      if (dragEvent.target instanceof Element && dragEvent.target.closest("button")) {
+        dragEvent.preventDefault();
+        return;
+      }
+
+      draggedRowIndex = index;
+      clearDropIndicators();
+      row.classList.add("is-dragging");
+
+      if (dragEvent.dataTransfer) {
+        dragEvent.dataTransfer.effectAllowed = "move";
+        dragEvent.dataTransfer.setData("text/plain", String(index));
+      }
+    });
+
+    row.addEventListener("dragover", (dragEvent) => {
+      if (draggedRowIndex === null || draggedRowIndex === index) {
+        return;
+      }
+
+      dragEvent.preventDefault();
+      if (dragEvent.dataTransfer) {
+        dragEvent.dataTransfer.dropEffect = "move";
+      }
+
+      clearDropIndicators();
+      const rowRect = row.getBoundingClientRect();
+      const shouldDropBefore = dragEvent.clientY < rowRect.top + rowRect.height / 2;
+      row.classList.add(shouldDropBefore ? "drop-before" : "drop-after");
+    });
+
+    row.addEventListener("drop", (dragEvent) => {
+      dragEvent.preventDefault();
+
+      if (draggedRowIndex === null || draggedRowIndex === index) {
+        clearDropIndicators();
+        return;
+      }
+
+      const rowRect = row.getBoundingClientRect();
+      const shouldDropBefore = dragEvent.clientY < rowRect.top + rowRect.height / 2;
+      const rawTargetIndex = index + (shouldDropBefore ? 0 : 1);
+      const adjustedTargetIndex = draggedRowIndex < rawTargetIndex ? rawTargetIndex - 1 : rawTargetIndex;
+
+      commitReorder(draggedRowIndex, adjustedTargetIndex, adjustedTargetIndex);
+    });
+
+    row.addEventListener("dragend", () => {
+      draggedRowIndex = null;
+      clearDropIndicators();
+    });
+
+    row.addEventListener("keydown", (keyboardEvent) => {
+      if (keyboardEvent.target !== row || !keyboardEvent.altKey) {
+        return;
+      }
+
+      let targetIndex = null;
+      if (keyboardEvent.key === "ArrowUp") {
+        targetIndex = Math.max(0, index - 1);
+      } else if (keyboardEvent.key === "ArrowDown") {
+        targetIndex = Math.min(state.events.length - 1, index + 1);
+      }
+
+      if (targetIndex === null || targetIndex === index) {
+        return;
+      }
+
+      keyboardEvent.preventDefault();
+      commitReorder(index, targetIndex, targetIndex);
+    });
+
+    removeButton.addEventListener("click", () => {
       state.events.splice(index, 1);
       renderTable();
       renderPreview();
       persistStateToCookies();
     });
 
+    moveUpButton.addEventListener("click", () => {
+      const targetIndex = Math.max(0, index - 1);
+      if (targetIndex === index) {
+        return;
+      }
+      commitReorder(index, targetIndex, targetIndex);
+    });
+
+    moveDownButton.addEventListener("click", () => {
+      const targetIndex = Math.min(state.events.length - 1, index + 1);
+      if (targetIndex === index) {
+        return;
+      }
+      commitReorder(index, targetIndex, targetIndex);
+    });
+
     eventsTableBody.appendChild(row);
   });
+
+  if (Number.isInteger(focusRowIndex)) {
+    const rowToFocus = eventsTableBody.querySelector(`tr[data-index="${focusRowIndex}"]`);
+    if (rowToFocus instanceof HTMLElement) {
+      rowToFocus.focus();
+    }
+  }
 
   updateInterfaceState();
 }
@@ -511,6 +748,7 @@ function updateInterfaceState() {
   const total = state.events.length;
   eventCount.textContent = `${total} evento${total === 1 ? "" : "s"}`;
   emptyState.hidden = total > 0;
+  sortEventsButton.disabled = total === 0;
   exportButton.disabled = total === 0;
   exportCurrentButton.disabled = total === 0;
 }
@@ -897,6 +1135,10 @@ downloadTemplateButton.addEventListener("click", async () => {
 
 importSheetButton.addEventListener("click", () => {
   importSheetFile();
+});
+
+sortEventsButton.addEventListener("click", () => {
+  sortEventsAscending(sortFieldSelect.value);
 });
 
 resetColorsButton.addEventListener("click", () => {

@@ -116,7 +116,34 @@ Se quiser funcionamento offline completo, adicione os arquivos:
 - Favicon não aparece:
   - Faça recarga forçada do navegador para limpar cache (`Ctrl+F5`).
 
+## Changelog
+
+### 1.1 - 04/2026
+
+#### Added
+
+- Drag and drop dos eventos na tabela de cadastrados.
+- Painel Organizar por acima das colunas, com seleção de campo e botão de organização ascendente.
+
+#### Changed
+
+- Fluxo de reordenação: ao reorganizar eventos (drag and drop ou organizador), a tabela e a prévia são atualizadas imediatamente.
+- Persistência: a ordem dos eventos reorganizados passa a ser salva automaticamente no localStorage.
+- Ordenação por Dia/Mês em ordem crescente quando o formato é válido (dd/mm).
+- Ordenação por Horário em ordem crescente quando o formato é válido (hh:mm).
+- Ordenação por Evento, Produtor e Onde comprar em ordem alfabética ascendente.
+
+#### Fixed
+
+- Consistência da experiência após organização: estado visual e estado salvo ficam sincronizados com a nova ordem.
+
+### 1.0 - 04/2026
+
+#### Added
+
+- Lançamento inicial com as opções básicas de criação, importação e exportação da agenda.
+
 ## Créditos
 
 Desenvolvido por Francis Castela para uso interno do Teatro Municipal de Itajaí.
-Versão 1.0 - 04/2026.
+Versão 1.1 - 04/2026.

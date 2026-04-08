@@ -122,6 +122,17 @@
         <span class="step-pill">Passo 3</span>
         <h2>Eventos cadastrados <span id="eventCount" class="counter">0 eventos</span></h2>
       </div>
+      <div class="sort-controls" aria-label="Organizador de eventos">
+        <label for="sortField">Organizar por</label>
+        <select id="sortField" aria-label="Campo para ordenar eventos">
+          <option value="date">Dia/Mês</option>
+          <option value="time">Horário</option>
+          <option value="name">Evento</option>
+          <option value="producer">Produtor</option>
+          <option value="ticket">Onde comprar</option>
+        </select>
+        <button id="sortEvents" type="button" class="ghost">Organizar (ascendente)</button>
+      </div>
       <div class="table-wrap">
         <table id="eventsTable">
           <thead>
@@ -137,6 +148,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <p class="subtitle compact reorder-hint">Reorganize os eventos arrastando as linhas, usando os botões ↑/↓ na coluna Ação, ou pelo teclado com Alt + Seta para cima/baixo.</p>
       <p id="emptyState" class="empty-state">Nenhum evento cadastrado ainda. Use o formulário acima para começar.</p>
 
       <div class="section-head">
@@ -169,7 +181,7 @@
         <a href="https://www.aeca.com.br/francis-castela" target="_blank" rel="noopener noreferrer">Francis Castela</a>
         para uso interno do Teatro Municipal de Itajaí.
       </p>
-      <p class="site-footer-meta">Versão 1.0 • 04/2026</p>
+      <p class="site-footer-meta">Versão 1.1 • 04/2026</p>
     </div>
   </footer>
 
