@@ -247,6 +247,53 @@ body {
   border-color: #5a7eaf;
 }
 
+:root[data-theme="dark"] .color-spoiler summary,
+:root[data-theme="dark"] .import-spoiler summary {
+  color: #c8dcf8;
+  border-color: #4a6990;
+  background: linear-gradient(160deg, rgba(30, 44, 66, 0.96), rgba(24, 37, 58, 0.92));
+  box-shadow: 0 8px 18px rgba(2, 8, 20, 0.38);
+}
+
+:root[data-theme="dark"] .color-spoiler summary::before,
+:root[data-theme="dark"] .import-spoiler summary::before {
+  color: #91baf0;
+  background: rgba(94, 166, 243, 0.12);
+}
+
+:root[data-theme="dark"] .color-spoiler summary::after,
+:root[data-theme="dark"] .import-spoiler summary::after {
+  color: #91baf0;
+}
+
+:root[data-theme="dark"] .color-spoiler summary:hover,
+:root[data-theme="dark"] .import-spoiler summary:hover {
+  border-color: #6a90be;
+  box-shadow: 0 12px 24px rgba(2, 8, 20, 0.5);
+}
+
+:root[data-theme="dark"] .color-spoiler summary:focus-visible,
+:root[data-theme="dark"] .import-spoiler summary:focus-visible {
+  border-color: #7eaedf;
+  box-shadow:
+    0 0 0 3px rgba(94, 166, 243, 0.22),
+    0 12px 24px rgba(2, 8, 20, 0.4);
+}
+
+:root[data-theme="dark"] .color-spoiler[open],
+:root[data-theme="dark"] .import-spoiler[open] {
+  background: linear-gradient(170deg, rgba(22, 33, 52, 0.97), rgba(18, 28, 46, 0.97));
+  box-shadow:
+    0 14px 28px rgba(2, 8, 20, 0.45),
+    0 1px 0 rgba(168, 192, 229, 0.1) inset;
+}
+
+:root[data-theme="dark"] .color-spoiler[open] summary,
+:root[data-theme="dark"] .import-spoiler[open] summary {
+  border-color: #5c84b4;
+  box-shadow: 0 10px 24px rgba(2, 8, 20, 0.4);
+}
+
 .layout {
   max-width: 1400px;
   margin: 0 auto;
@@ -687,6 +734,29 @@ td {
   padding: 8px;
   text-align: left;
   vertical-align: top;
+}
+
+td.editable-cell {
+  cursor: text;
+}
+
+.cell-edit-input {
+  width: 100%;
+  min-width: 60px;
+  padding: 3px 7px;
+  font: inherit;
+  font-size: inherit;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--panel-strong);
+  color: var(--text);
+  box-shadow: 0 0 0 3px rgba(15, 108, 189, 0.15);
+  outline: none;
+  box-sizing: border-box;
+}
+
+:root[data-theme="dark"] .cell-edit-input {
+  box-shadow: 0 0 0 3px rgba(94, 166, 243, 0.2);
 }
 
 th {

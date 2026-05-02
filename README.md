@@ -118,6 +118,16 @@ Se quiser funcionamento offline completo, adicione os arquivos:
 
 ## Changelog
 
+### 1.2 - 05/2026
+
+#### Added
+
+- Edição inline de células da tabela: duplo clique em qualquer campo (Dia/Mês, Horário, Evento, Produtor ou Onde comprar) abre um input para editar o valor diretamente. Confirma com **Enter** ou ao clicar fora; cancela com **Escape**.
+
+#### Fixed
+
+- Modo escuro não aplicado nos acordeões "Personalizar cores" e "Importar planilha": os summaries e o estado `[open]` agora recebem estilos corretos no tema escuro.
+
 ### 1.1 - 04/2026
 
 #### Added
@@ -146,4 +156,4 @@ Se quiser funcionamento offline completo, adicione os arquivos:
 ## Créditos
 
 Desenvolvido por Francis Castela para uso interno do Teatro Municipal de Itajaí.
-Versão 1.1 - 04/2026.
+Versão 1.2 - 05/2026.

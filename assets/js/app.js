@@ -277,6 +277,60 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+const EDITABLE_FIELD_KEYS = ["date", "time", "name", "producer", "ticket"];
+
+function startCellEdit(td, eventIndex, field) {
+  if (td.querySelector("input")) {
+    return;
+  }
+
+  const original = state.events[eventIndex][field];
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = original;
+  input.className = "cell-edit-input";
+  input.setAttribute("aria-label", `Editar campo`);
+
+  td.textContent = "";
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    const newValue = input.value.trim();
+    state.events[eventIndex][field] = newValue !== "" ? newValue : original;
+    td.textContent = state.events[eventIndex][field];
+    renderPreview();
+    persistStateToCookies();
+  };
+
+  const cancel = () => {
+    if (committed) return;
+    committed = true;
+    td.textContent = original;
+  };
+
+  input.addEventListener("blur", commit);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      input.blur();
+    } else if (e.key === "Escape") {
+      input.removeEventListener("blur", commit);
+      cancel();
+    }
+  });
+
+  input.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+  });
+}
+
 function normalizeHeader(value) {
   return String(value || "")
     .normalize("NFD")
@@ -633,6 +687,16 @@ function renderTable(focusRowIndex = null) {
     const moveDownButton = row.querySelector(".move-down");
     row.querySelectorAll("button").forEach((button) => {
       button.draggable = false;
+    });
+
+    const editableCells = Array.from(row.querySelectorAll("td")).slice(0, 5);
+    editableCells.forEach((td, colIndex) => {
+      td.classList.add("editable-cell");
+      td.setAttribute("title", "Clique duas vezes para editar");
+      td.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        startCellEdit(td, index, EDITABLE_FIELD_KEYS[colIndex]);
+      });
     });
 
     row.addEventListener("dragstart", (dragEvent) => {
