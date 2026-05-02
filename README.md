@@ -123,6 +123,7 @@ Se quiser funcionamento offline completo, adicione os arquivos:
 #### Added
 
 - Edição inline de células da tabela: duplo clique em qualquer campo (Dia/Mês, Horário, Evento, Produtor ou Onde comprar) abre um input para editar o valor diretamente. Confirma com **Enter** ou ao clicar fora; cancela com **Escape**.
+- Altura de linha dinâmica no canvas: linhas cujo texto ultrapassa uma linha crescem automaticamente para acomodar o conteúdo completo. A paginação passa a considerar a altura real acumulada das linhas, distribuindo os eventos nas páginas conforme o espaço disponível.
 
 #### Fixed
 

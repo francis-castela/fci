@@ -955,29 +955,79 @@ function drawCenteredLineItems(ctx, items, centerX, centerY) {
   });
 }
 
-function getPageCapacity(height = OUTPUT_HEIGHT) {
+function getAvailableRowHeight(height = OUTPUT_HEIGHT) {
   const brandTop = 24;
   const brandHeight = 146;
   const titleHeight = 76;
   const sectionGap = 16;
   const headerHeight = 52;
-  const rowHeight = 89;
+  const bottomMargin = 24;
   const titleTop = brandTop + brandHeight + sectionGap;
   const headerTop = titleTop + titleHeight + sectionGap;
-  const availableHeight = height - (headerTop + headerHeight) - 24;
-  return Math.max(1, Math.floor(availableHeight / rowHeight));
+  return height - (headerTop + headerHeight) - bottomMargin;
+}
+
+function measureRowHeights(events) {
+  const measurer = document.createElement("canvas");
+  measurer.width = OUTPUT_WIDTH;
+  measurer.height = 1;
+  const ctx = measurer.getContext("2d");
+
+  const margin = 28;
+  const contentWidth = OUTPUT_WIDTH - margin * 2;
+  const tableRightW = Math.floor(contentWidth * 0.23);
+  const tableLeftW = Math.floor(contentWidth * 0.14);
+  const tableMiddleW = contentWidth - tableLeftW - tableRightW;
+  const bodyFontSize = 24;
+  const MIN_ROW_HEIGHT = 89;
+
+  return events.map((event) => {
+    ctx.font = `700 ${bodyFontSize}px Montserrat`;
+    const nameLines = wrapText(ctx, event.name, tableMiddleW - 22);
+
+    ctx.font = `500 ${bodyFontSize}px Montserrat`;
+    const producerLines = wrapText(ctx, event.producer, tableMiddleW - 22);
+
+    ctx.font = `700 ${bodyFontSize}px Montserrat`;
+    const ticketLines = wrapText(ctx, event.ticket, tableRightW - 26);
+
+    // totalSpan = sum of lineHeights for items[1..n] in drawCenteredLineItems
+    const leftSpan = 30; // date (item 0) + time (item 1, lh=30)
+    const middleSpan = (nameLines.length - 1) * 30 + producerLines.length * 28;
+    const rightSpan = (ticketLines.length - 1) * 26;
+
+    const maxSpan = Math.max(leftSpan, middleSpan, rightSpan);
+    // needed height = maxSpan + bodyFontSize (for the first item's render area) + padding
+    return Math.max(MIN_ROW_HEIGHT, maxSpan + bodyFontSize + 16);
+  });
 }
 
 function getPagedEvents() {
-  const capacity = getPageCapacity(OUTPUT_HEIGHT);
-
   if (state.events.length === 0) {
     return [[]];
   }
 
+  const availableHeight = getAvailableRowHeight(OUTPUT_HEIGHT);
+  const rowHeights = measureRowHeights(state.events);
+
   const pages = [];
-  for (let i = 0; i < state.events.length; i += capacity) {
-    pages.push(state.events.slice(i, i + capacity));
+  let pageStart = 0;
+
+  while (pageStart < state.events.length) {
+    let usedHeight = 0;
+    let pageEnd = pageStart;
+
+    while (pageEnd < state.events.length) {
+      const nextHeight = rowHeights[pageEnd];
+      if (pageEnd > pageStart && usedHeight + nextHeight > availableHeight) {
+        break;
+      }
+      usedHeight += nextHeight;
+      pageEnd += 1;
+    }
+
+    pages.push(state.events.slice(pageStart, pageEnd));
+    pageStart = pageEnd;
   }
 
   return pages;
@@ -1057,9 +1107,9 @@ function drawSchedule(ctx, width, height, events) {
   const tableRightW = Math.floor(contentWidth * 0.23);
   const tableLeftW = Math.floor(contentWidth * 0.14);
   const tableMiddleW = contentWidth - tableLeftW - tableRightW;
-  const rowHeight = 89;
   const rowCount = events.length;
-  const tableBodyHeight = rowHeight * rowCount;
+  const rowHeights = measureRowHeights(events);
+  const totalBodyHeight = rowHeights.reduce((sum, h) => sum + h, 0);
 
   ctx.textAlign = "left";
   ctx.fillStyle = theme.dark;
@@ -1071,9 +1121,9 @@ function drawSchedule(ctx, width, height, events) {
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(contentX + tableLeftW, headerTop);
-  ctx.lineTo(contentX + tableLeftW, headerTop + 52 + tableBodyHeight);
+  ctx.lineTo(contentX + tableLeftW, headerTop + 52 + totalBodyHeight);
   ctx.moveTo(contentX + tableLeftW + tableMiddleW, headerTop);
-  ctx.lineTo(contentX + tableLeftW + tableMiddleW, headerTop + 52 + tableBodyHeight);
+  ctx.lineTo(contentX + tableLeftW + tableMiddleW, headerTop + 52 + totalBodyHeight);
   ctx.stroke();
 
   const bodyFontSize = 24;
@@ -1089,18 +1139,19 @@ function drawSchedule(ctx, width, height, events) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
+  let currentRowY = headerTop + 52;
   for (let i = 0; i < rowCount; i += 1) {
-    const y = headerTop + 52 + i * rowHeight;
-    const rowCenterY = y + rowHeight / 2;
+    const rowHeight = rowHeights[i];
+    const rowCenterY = currentRowY + rowHeight / 2;
     const event = events[i];
     ctx.fillStyle = i % 2 === 0 ? theme.primary : theme.light;
-    ctx.fillRect(contentX, y, contentWidth, rowHeight);
+    ctx.fillRect(contentX, currentRowY, contentWidth, rowHeight);
 
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(contentX, y);
-    ctx.lineTo(contentX + contentWidth, y);
+    ctx.moveTo(contentX, currentRowY);
+    ctx.lineTo(contentX + contentWidth, currentRowY);
     ctx.stroke();
 
     ctx.fillStyle = "#fff";
@@ -1120,10 +1171,10 @@ function drawSchedule(ctx, width, height, events) {
     const producerMaxWidth = tableMiddleW - 22;
 
     ctx.font = `700 ${bodyFontSize}px Montserrat`;
-    const nameLines = wrapText(ctx, event.name, nameMaxWidth).slice(0, 2).filter(Boolean);
+    const nameLines = wrapText(ctx, event.name, nameMaxWidth).filter(Boolean);
 
     ctx.font = `500 ${bodyFontSize}px Montserrat`;
-    const producerLines = wrapText(ctx, event.producer, producerMaxWidth).slice(0, 1).filter(Boolean);
+    const producerLines = wrapText(ctx, event.producer, producerMaxWidth).filter(Boolean);
 
     const middleItems = [
       ...nameLines.map((text) => ({
@@ -1140,13 +1191,15 @@ function drawSchedule(ctx, width, height, events) {
     drawCenteredLineItems(ctx, middleItems, eventCenterX, rowCenterY);
 
     ctx.font = `700 ${bodyFontSize}px Montserrat`;
-    const ticketLines = wrapText(ctx, event.ticket, tableRightW - 26).slice(0, 2).filter(Boolean);
+    const ticketLines = wrapText(ctx, event.ticket, tableRightW - 26).filter(Boolean);
     const ticketItems = ticketLines.map((text) => ({
       text,
       font: `700 ${bodyFontSize}px Montserrat`,
       lineHeight: 26,
     }));
     drawCenteredLineItems(ctx, ticketItems, contentX + tableLeftW + tableMiddleW + tableRightW / 2, rowCenterY);
+
+    currentRowY += rowHeight;
   }
 
   ctx.textBaseline = "alphabetic";
